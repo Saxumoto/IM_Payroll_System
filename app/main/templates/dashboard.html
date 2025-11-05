@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-5">Welcome, User!</h1>
+    <a href="{{ url_for('auth.signout') }}" class="btn btn-danger">Sign Out</a>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-3">
+        <div class="card card-custom text-center p-3 mb-3">
+            <h5 class="card-title text-muted">Total Employees</h5>
+            <h2 class="card-text text-primary">{{ data.total_employees }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-custom text-center p-3 mb-3">
+            <h5 class="card-title text-muted">Total Salary</h5>
+            <h2 class="card-text text-success">{{ data.total_salary }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-custom text-center p-3 mb-3">
+            <h5 class="card-title text-muted">Average Salary</h5>
+            <h2 class="card-text text-info">{{ data.average_salary }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-custom text-center p-3 mb-3">
+            <h5 class="card-title text-muted">Recent Payments</h5>
+            <h2 class="card-text text-warning">{{ data.recent_payments }}</h2>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card card-custom p-4 mb-3">
+            <h4 class="card-title">Quick Actions</h4>
+            <div class="row mt-3">
+                <div class="col-6 mb-3">
+                    <a href="#" class="btn btn-primary w-100 py-3">
+                        <i class="fas fa-user-plus me-2"></i> Add Employee
+                    </a>
+                </div>
+                <div class="col-6 mb-3">
+                    <a href="#" class="btn btn-danger w-100 py-3">
+                        <i class="fas fa-calculator me-2"></i> Process Payroll
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="#" class="btn btn-info w-100 py-3">
+                        <i class="fas fa-chart-line me-2"></i> View Reports
+                    </a>
+                </div>
+                <div class="col-6">
+                    <a href="#" class="btn btn-secondary w-100 py-3">
+                        <i class="fas fa-users-cog me-2"></i> Manage Staff
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-custom p-4 mb-3" style="min-height: 250px;">
+            <h4 class="card-title">Recent Employees</h4>
+            <p class="text-muted">List recent hires here...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
