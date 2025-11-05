@@ -1,0 +1,47 @@
+<!-- app/employee/templates/file_leave.html -->
+{% extends "base.html" %}
+
+{% block title %}File Leave Request{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card card-custom p-4" style="margin-top: 2vh;">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">File a New Leave Request</h1>
+            <a href="{{ url_for('employee.dashboard') }}" class="btn btn-outline-secondary">Back to My Dashboard</a>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <form method="POST" action="{{ url_for('employee.file_leave') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label for="leave_type" class="form-label">Leave Type</label>
+                        {{ form.leave_type(class="form-select") }}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            {{ form.start_date(class="form-control", type="date") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            {{ form.end_date(class="form-control", type="date") }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Reason (Optional)</label>
+                        {{ form.reason(class="form-control", rows=4, placeholder="Please provide a brief reason for your leave...") }}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 py-3 mt-3">Submit Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

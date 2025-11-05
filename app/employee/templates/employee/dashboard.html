@@ -1,0 +1,69 @@
+<!-- app/employee/templates/employee/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}My Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card card-custom p-4" style="margin-top: 2vh;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">Welcome, {{ employee.first_name }}!</h1>
+            <a href="{{ url_for('auth.signout') }}" class="btn btn-danger">Sign Out</a>
+        </div>
+
+        <div class="row">
+            <!-- My Profile Card -->
+            <div class="col-md-6">
+                <div class="card card-custom p-4 mb-3">
+                    <div class="text-center mb-3">
+                        <img src="{{ employee.photo_url }}" alt="Profile Photo" class="img-thumbnail rounded-circle" style="width: 120px; height: 120px; object-fit: cover;">
+                    </div>
+                    <h4 class="card-title text-center">{{ employee.first_name }} {{ employee.last_name }}</h4>
+                    <p class="text-center text-muted mb-4">{{ employee.position }}</p>
+
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted">Employee ID</td>
+                                <td>{{ employee.employee_id_number }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Status</td>
+                                <td><span class="badge bg-success">{{ employee.status }}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Date Hired</td>
+                                <td>{{ employee.date_hired.strftime('%b %d, %Y') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- My Actions Card -->
+            <div class="col-md-6">
+                <div class="card card-custom p-4 mb-3">
+                    <h4 class="card-title">My Actions</h4>
+                    <div class="d-grid gap-3 mt-3">
+                        <a href="{{ url_for('employee.my_payslips') }}" class="btn btn-primary btn-lg py-3">
+                            View My Payslips
+                        </a>
+                        
+                        <a href="{{ url_for('employee.file_leave') }}" class="btn btn-secondary btn-lg py-3">
+                            File New Leave
+                        </a>
+                        
+                        <!-- 
+                          --- THIS IS THE FIX --- 
+                          The typo 'class.btn' is now 'class="btn ..."'
+                        -->
+                        <a href="{{ url_for('employee.my_leave_history') }}" class="btn btn-outline-secondary btn-lg py-3">
+                            My Leave History
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+<!-- app/payroll/templates/payroll/run_payroll.html -->
+{% extends "base.html" %}
+
+{% block title %}Process New Payroll{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="form-container" style="margin-top: 2vh;">
+            <h2 class="card-title text-center mb-4">Process New Payroll Run</h2>
+            <p class="text-center text-muted">Define the pay period. The system will calculate payroll for all <strong>active</strong> employees based on their saved monthly salary.</p>
+            
+            <form method="POST" action="{{ url_for('payroll.run_payroll') }}">
+                {{ form.hidden_tag() }}
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="pay_period_start" class="form-label">Pay Period Start Date</label>
+                        {{ form.pay_period_start(class="form-control", type="date") }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="pay_period_end" class="form-label">Pay Period End Date</label>
+                        {{ form.pay_period_end(class="form-control", type="date") }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="pay_date" class="form-label">Payment Date</label>
+                        {{ form.pay_date(class="form-control", type="date") }}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-danger w-100 mt-4 py-3">Generate Payroll</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

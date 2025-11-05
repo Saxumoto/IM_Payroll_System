@@ -1,0 +1,89 @@
+<!-- app/templates/welcome.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - Payroll Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(120deg, #6a85b6 0%, #bac8e0 100%);
+            min-height: 100vh;
+        }
+        .card-custom {
+            border-radius: 1rem; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: none;
+        }
+        .navbar-brand-logo {
+            height: 120px;
+            width: 120px;
+            margin-bottom: 1rem;
+            border: 4px solid #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container text-center text-white" style="padding-top: 10vh;">
+    
+        <!-- 
+          THIS IS THE FIX:
+          We are now using your 'logo.png' file instead of a placeholder.
+        -->
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" class="rounded-circle navbar-brand-logo">
+
+        <!-- Main Heading from Mockup -->
+        <h1 class="display-4 fw-bold">PAYROLL MANAGEMENT SYSTEM</h1>
+        <h2 class="h4 fw-light mb-4">The Visa Center (DIZON IMMIGRATION SERVICES)</h2>
+        <p class="lead" style="max-width: 600px; margin: 0 auto 2.5rem auto;">
+            Streamline your payroll operations with our comprehensive system.
+            Manage employees, process payments, and generate reports all in one
+            place.
+        </p>
+
+        <!-- Call to Action Buttons -->
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mb-5">
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-4 me-sm-3">Get Started</a>
+            <a href="{{ url_for('auth.signin') }}" class="btn btn-outline-light btn-lg px-4">Sign In</a>
+        </div>
+
+        <!-- Feature Cards from Mockup -->
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="card card-custom h-100 p-3">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Employee Management</h5>
+                        <p class="card-text text-muted small">Easily manage employee information, roles, and status.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-custom h-100 p-3">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Payroll Processing</h5>
+                        <p class="card-text text-muted small">Streamlined payroll calculation and processing system.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-custom h-100 p-3">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Reports & Analytics</h5>
+                        <p class="card-text text-muted small">Generate comprehensive payroll and employee reports.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-custom h-100 p-3">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Secure System</h5>
+                        <p class="card-text text-muted small">Enterprise-grade security for your sensitive data.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ class Config:
         'sqlite:///' + os.path.join(basedir, 'instance', 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MIGRATION_DIR = os.path.join(basedir, 'migrations')
+    UPLOAD_FOLDER = os.path.join(basedir, 'uploads', 'profile_pics')
 
 class DevelopmentConfig(Config):
     DEBUG = True
