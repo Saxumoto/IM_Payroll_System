@@ -1,33 +1,15 @@
-# app/__init__.py (Modified)
+# app/models/user.py (Final Correction)
 
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager # <--- NEW IMPORT
-from config import config
+from app import db # Keep db
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin 
+from app import login # <--- Import 'login' via its definition in __init__.py
 
-db = SQLAlchemy()
-migrate = Migrate()
-login = LoginManager() # <--- NEW INSTANCE
+class User(UserMixin, db.Model): 
+    # ... (rest of the class remains the same)
 
-# Set the view function for logging in (tells Flask-Login where the login page is)
-login.login_view = 'auth.signin' 
-# Optional: Set a message category for the default login message
-login.login_message_category = 'warning' 
-
-def create_app(config_name='default'):
-    app = Flask(__name__, instance_relative_config=True)
-    app.config.from_object(config[config_name])
-    
-    db.init_app(app)
-    migrate.init_app(app, db, directory=app.config.get('MIGRATION_DIR'))
-    login.init_app(app) # <--- INITIALIZE LOGIN
-
-    # --- Register Blueprints ---
-    from .auth import bp as auth_bp
-    app.register_blueprint(auth_bp)
-    
-    from .main import bp as main_bp
-    app.register_blueprint(main_bp)
-    
-    return app
+# User loader function for Flask-Login
+@login.user_loader # <--- Use the imported 'login' instance here
+def load_user(id):
+    """Retrieves a user from the database given their ID."""
+    return User.query.get(int(id))
