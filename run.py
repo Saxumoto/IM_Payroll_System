@@ -1,6 +1,6 @@
 import os
 from app import create_app, db
-from app.models.user import User # Import model for shell context
+
 
 app = create_app(os.environ.get('FLASK_ENV', 'default'))
 
