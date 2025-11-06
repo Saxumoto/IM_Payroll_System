@@ -39,8 +39,11 @@ def create_app(config_name='default'):
     from .payroll import bp as payroll_bp
     app.register_blueprint(payroll_bp)
 
-    # --- NEW BLUEPRINT ---
     from .employee import bp as employee_bp
     app.register_blueprint(employee_bp)
+    
+    # --- NEW BLUEPRINT: Attendance ---
+    from .attendance import bp as attendance_bp
+    app.register_blueprint(attendance_bp)
 
     return app

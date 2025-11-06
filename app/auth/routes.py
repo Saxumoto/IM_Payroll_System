@@ -11,7 +11,7 @@ from .forms import LoginForm, RegistrationForm
 def register():
     if current_user.is_authenticated:
         if current_user.role == 'Admin':
-            return redirect(url_for('main.dashboard'))
+            return redirect(url_for('main.admin_dashboard'))
         else:
             return redirect(url_for('employee.dashboard'))
     
@@ -43,7 +43,7 @@ def register():
 def signin():
     if current_user.is_authenticated:
         if current_user.role == 'Admin':
-            return redirect(url_for('main.dashboard'))
+            return redirect(url_for('main.admin_dashboard'))
         else:
             return redirect(url_for('employee.dashboard'))
     
@@ -57,11 +57,17 @@ def signin():
             
         login_user(user, remember=False)
         
-        # --- THIS IS THE FIX for the Redirect ---
+        # --- FIXED REDIRECT LOGIC ---
         if user.role == 'Admin':
-            return redirect(url_for('main.dashboard'))
+            return redirect(url_for('main.admin_dashboard'))
         elif user.role == 'Employee':
-            return redirect(url_for('employee.dashboard'))
+            if user.employee: 
+                # Employee profile exists, proceed to dashboard
+                return redirect(url_for('employee.dashboard'))
+            else:
+                # Employee profile is missing (awaiting HR setup)
+                flash('Your account is awaiting HR setup. Please contact your administrator.', 'warning')
+                return redirect(url_for('main.welcome')) # Send to safe page while logged in
         else:
             return redirect(url_for('main.welcome'))
         

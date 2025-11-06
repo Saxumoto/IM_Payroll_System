@@ -1,4 +1,3 @@
-<!-- app/employee/templates/my_payslips.html -->
 {% extends "base.html" %}
 
 {% block title %}My Payslips{% endblock %}
@@ -18,9 +17,13 @@
                     <tr>
                         <th>Pay Period</th>
                         <th>Pay Date</th>
+                        <th>Reg Hours</th>
+                        <th>OT Hours</th>
+                        <th>Late Ded.</th>
                         <th>Gross Salary</th>
                         <th>Total Deductions</th>
                         <th>Net Pay</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -29,14 +32,25 @@
                         <tr>
                             <td>{{ slip.payroll_run.pay_period_start.strftime('%b %d') }} - {{ slip.payroll_run.pay_period_end.strftime('%b %d, %Y') }}</td>
                             <td>{{ slip.payroll_run.pay_date.strftime('%b %d, %Y') }}</td>
+                            
+                            <td>{{ "{:,.2f}".format(slip.regular_hours or 0.00) }}</td>
+                            <td>{{ "{:,.2f}".format(slip.overtime_hours or 0.00) }}</td>
+                            <td>₱{{ "{:,.2f}".format(slip.late_deductions or 0.00) }}</td>
+                            
                             <td>₱{{ "{:,.2f}".format(slip.gross_salary) }}</td>
                             <td>₱{{ "{:,.2f}".format(slip.total_deductions) }}</td>
                             <td><strong>₱{{ "{:,.2f}".format(slip.net_pay) }}</strong></td>
+                            
+                            <td>
+                                <a href="{{ url_for('employee.view_payslip_detail', slip_id=slip.id) }}" class="btn btn-sm btn-primary">
+                                    View Details
+                                </a>
+                            </td>
                         </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="5" class="text-center text-muted">No payslips found.</td>
+                            <td colspan="9" class="text-center text-muted">No payslips found.</td>
                         </tr>
                     {% endif %}
                 </tbody>

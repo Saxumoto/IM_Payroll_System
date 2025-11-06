@@ -1,3 +1,5 @@
+# migrations/env.py
+
 import os
 import sys
 from logging.config import fileConfig
@@ -16,9 +18,19 @@ from flask import current_app
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python's standard logging.
+# --- NEW FIX: Explicitly resolve alembic.ini path for fileConfig ---
+# The alembic.ini file is in the parent directory of this env.py file.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Use os.path.dirname(__file__) which is the 'migrations' directory
+    # and then go up one level to find 'alembic.ini'
+    alembic_ini_path = os.path.join(os.path.dirname(__file__), '..', 'alembic.ini')
+    
+    # Use the resolved path for fileConfig, as the Alembic provided path may be incorrect.
+    if os.path.exists(alembic_ini_path):
+        fileConfig(alembic_ini_path)
+    else:
+        # Fallback to the original path provided by Alembic context if custom path fails
+        fileConfig(config.config_file_name)
 
 # Define target_metadata to use Flask-SQLAlchemy's metadata
 target_metadata = db.metadata

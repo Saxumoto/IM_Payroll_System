@@ -3,18 +3,87 @@
 from flask import render_template, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.employee import bp
-from app.models.user import Payslip, PayrollRun, LeaveRequest 
+from app.models.user import Payslip, PayrollRun, LeaveRequest, AttendanceLog, LeaveBalance 
 from app import db
 from .forms import LeaveRequestForm 
+from datetime import datetime
+from sqlalchemy import desc
+
+# Helper function to check if the user is currently clocked in
+def get_current_clock_status(employee_id):
+    """Checks the last attendance log to determine if the employee is currently clocked in."""
+    last_log = AttendanceLog.query.filter_by(employee_id=employee_id)\
+        .order_by(desc(AttendanceLog.timestamp)).first()
+        
+    # If no logs exist, status is OUT
+    if not last_log:
+        return {'status': 'OUT', 'time': None}
+        
+    # If last log was IN, status is IN
+    if last_log.event_type == 'IN':
+        return {'status': 'IN', 'time': last_log.timestamp}
+    
+    # If last log was OUT or ADJUST, status is OUT
+    return {'status': 'OUT', 'time': last_log.timestamp}
+
 
 @bp.route('/dashboard')
 @login_required
 def dashboard():
     """Renders the employee's personal dashboard."""
+    
+    # 1. Redirect Admin users away, as they don't have an employee profile
+    if current_user.role == 'Admin':
+        return redirect(url_for('main.admin_dashboard'))
+        
     employee = current_user.employee
     
+    # 2. Check if the authenticated non-admin user actually has an associated employee record
+    if employee is None:
+        flash('Employee profile not found. Please contact HR.', 'danger')
+        return redirect(url_for('auth.signout'))
+        
+    # --- NEW: Get Clock Status ---
+    clock_status = get_current_clock_status(employee.id)
+    
+    # --- NEW: Get Leave Balances (list of LeaveBalance objects for this employee) ---
+    leave_balances = LeaveBalance.query.filter_by(employee_id=employee.id).all()
+
     # This path is 'employee/dashboard.html' (which is correct for your file structure)
-    return render_template('employee/dashboard.html', employee=employee)
+    return render_template('employee/dashboard.html', employee=employee, clock_status=clock_status, leave_balances=leave_balances)
+
+
+@bp.route('/clock', methods=['POST'])
+@login_required
+def clock():
+    """Handles the employee's clock in/out action."""
+    employee = current_user.employee
+    
+    if not employee:
+        flash('Cannot clock in/out: Employee profile missing.', 'danger')
+        return redirect(url_for('employee.dashboard'))
+        
+    status = get_current_clock_status(employee.id)
+    new_event_type = 'OUT' if status['status'] == 'IN' else 'IN'
+    
+    try:
+        new_log = AttendanceLog(
+            employee_id=employee.id,
+            timestamp=datetime.utcnow(),
+            event_type=new_event_type,
+            source='Employee Self-Service'
+        )
+        db.session.add(new_log)
+        db.session.commit()
+        
+        # Display time in local timezone format (simplified by using strftime)
+        flash(f"Successfully clocked {new_event_type.lower()} at {new_log.timestamp.strftime('%Y-%m-%d %I:%M:%S %p')} UTC.", 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error processing clock action: {e}", 'danger')
+        
+    return redirect(url_for('employee.dashboard'))
 
 
 @bp.route('/my_payslips')
@@ -31,6 +100,22 @@ def my_payslips():
     # Removed the 'employee/' prefix
     # This will find 'app/employee/templates/my_payslips.html'
     return render_template('my_payslips.html', payslips=payslips)
+
+
+@bp.route('/my_payslips/<int:slip_id>')
+@login_required
+def view_payslip_detail(slip_id):
+    """Shows the detailed breakdown of a single payslip."""
+    employee = current_user.employee
+    
+    slip = db.session.get(Payslip, slip_id)
+    
+    # Security check: Ensure the payslip belongs to the logged-in employee
+    if slip is None or slip.employee_id != employee.id:
+        flash('Payslip not found or access denied.', 'danger')
+        return redirect(url_for('employee.my_payslips'))
+        
+    return render_template('payslip_detail.html', slip=slip)
 
 
 @bp.route('/file_leave', methods=['GET', 'POST'])

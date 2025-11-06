@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}System Audit Logs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card card-custom p-4" style="margin-top: 2vh;">
+    
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">System Audit Logs</h1>
+            <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+        </div>
+
+        <p class="text-danger small">WARNING: This log tracks all sensitive administrative modifications. It is for audit and security purposes only.</p>
+
+        <div class="d-flex justify-content-end mb-3">
+            <form method="POST" action="{{ url_for('main.delete_all_audit_logs') }}"
+                  onsubmit="return confirm('WARNING: Are you absolutely sure you want to delete ALL audit logs? This action cannot be undone.');">
+                <button type="submit" class="btn btn-sm btn-danger">Delete All Logs</button>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Admin User</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>
+                            {% if log.user %}
+                                <strong>{{ log.user.full_name }}</strong> ({{ log.user.username }})
+                            {% else %}
+                                N/A (System)
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-danger">{{ log.action }}</span></td>
+                        <td>{{ log.details }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

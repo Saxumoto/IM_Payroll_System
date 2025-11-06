@@ -3,7 +3,7 @@
 from flask import render_template, redirect, url_for, flash, current_app, send_from_directory
 from flask_login import login_required, current_user
 from app.main import bp
-from app.models.user import User, Employee, LeaveRequest # Import LeaveRequest
+from app.models.user import User, Employee, LeaveRequest, AuditLog # Import AuditLog
 from app import db
 from sqlalchemy import func
 import os
@@ -13,15 +13,16 @@ import os
 def welcome():
     if current_user.is_authenticated:
         if current_user.role == 'Admin':
-            return redirect(url_for('main.dashboard'))
-        else:
+            return redirect(url_for('main.admin_dashboard'))
+        # FIX: Only redirect to employee dashboard if an employee profile exists.
+        elif current_user.employee:
             return redirect(url_for('employee.dashboard'))
     return render_template('welcome.html')
 
 
 @bp.route('/dashboard')
 @login_required
-def dashboard():
+def admin_dashboard(): # RENAMED from dashboard()
     """Renders the main (Admin) Dashboard Page."""
     if current_user.role != 'Admin':
         return redirect(url_for('employee.dashboard'))
@@ -47,9 +48,7 @@ def dashboard():
         'pending_leave_requests': pending_leave_requests
     }
 
-    # --- THIS IS THE FIX ---
-    # We remove the 'main/' prefix. It will now correctly
-    # find 'app/main/templates/dashboard.html'
+    # FIX: Explicitly use 'dashboard.html' path for TemplateNotFound fix.
     return render_template('dashboard.html', data=dashboard_data)
 
 
@@ -58,3 +57,36 @@ def dashboard():
 def get_uploaded_file(filename):
     """Securely serves files from the upload folder."""
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+
+
+# --- NEW ROUTE: View Audit Logs ---
+@bp.route('/audit_logs')
+@login_required
+def view_audit_logs():
+    """Shows all administrative actions tracked in the Audit Log."""
+    if current_user.role != 'Admin':
+        flash('Access denied.', 'danger')
+        return redirect(url_for('main.admin_dashboard'))
+        
+    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
+    
+    return render_template('audit_logs.html', logs=logs)
+
+# --- NEW ROUTE: Delete Audit Logs Utility ---
+@bp.route('/audit_logs/delete_all', methods=['POST'])
+@login_required
+def delete_all_audit_logs():
+    """Deletes all entries in the Audit Log table."""
+    if current_user.role != 'Admin':
+        flash('Access denied.', 'danger')
+        return redirect(url_for('main.view_audit_logs'))
+
+    try:
+        num_deleted = db.session.query(AuditLog).delete()
+        db.session.commit()
+        flash(f'Successfully deleted {num_deleted} audit log entries.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'An error occurred while deleting audit logs: {e}', 'danger')
+
+    return redirect(url_for('main.view_audit_logs'))

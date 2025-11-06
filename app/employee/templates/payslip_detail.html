@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Payslip #{{ slip.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card card-custom p-4" style="margin-top: 2vh;">
+    
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">Payslip Detail #{{ slip.id }}</h1>
+            <a href="{{ url_for('employee.my_payslips') }}" class="btn btn-outline-secondary">Back to History</a>
+        </div>
+
+        <div class="p-3 mb-4 border rounded">
+            <h5 class="mb-1 text-primary">{{ slip.employee.first_name }} {{ slip.employee.last_name }}</h5>
+            <small class="text-muted">Employee ID: {{ slip.employee.employee_id_number }} | Position: {{ slip.employee.position }}</small>
+            <p class="mt-2 mb-0">
+                <span class="badge bg-warning">Period: {{ slip.payroll_run.pay_period_start.strftime('%b %d') }} - {{ slip.payroll_run.pay_period_end.strftime('%b %d, %Y') }}</span>
+                <span class="badge bg-success">Paid Date: {{ slip.payroll_run.pay_date.strftime('%Y-%m-%d') }}</span>
+            </p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card card-custom mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Earnings</h5>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Basic Monthly Salary
+                            <span>₱{{ "{:,.2f}".format(slip.employee.salary_rate) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Overtime Pay ({{ "{:,.2f}".format(slip.overtime_hours or 0.00) }} hrs)
+                            {% set late_deduction_amount = slip.late_deductions if slip.late_deductions is not none else 0 %}
+                            <span>₱{{ "{:,.2f}".format(slip.gross_salary - slip.employee.salary_rate + late_deduction_amount) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center bg-light fw-bold">
+                            Total Gross Pay (Adjusted)
+                            <span>₱{{ "{:,.2f}".format(slip.gross_salary) }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card card-custom mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Deductions</h5>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            SSS Contribution
+                            <span>₱{{ "{:,.2f}".format(slip.sss_deduction) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            PhilHealth Contribution
+                            <span>₱{{ "{:,.2f}".format(slip.philhealth_deduction) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Pag-IBIG Contribution
+                            <span>₱{{ "{:,.2f}".format(slip.pagibig_deduction) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Withholding Tax (BIR)
+                            <span>₱{{ "{:,.2f}".format(slip.withholding_tax) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Late Deduction Penalty
+                            <span class="text-danger">₱{{ "{:,.2f}".format(slip.late_deductions or 0.00) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center bg-light fw-bold">
+                            Total Deductions
+                            <span>₱{{ "{:,.2f}".format(slip.total_deductions) }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card card-custom bg-primary text-white p-3 text-center">
+            <h4 class="mb-0">Net Pay</h4>
+            <h1 class="display-4 fw-bold">₱{{ "{:,.2f}".format(slip.net_pay) }}</h1>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

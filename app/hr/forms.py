@@ -2,7 +2,7 @@
 
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, DecimalField, DateField, PasswordField
-from wtforms.validators import DataRequired, Email, Length, Optional, Regexp
+from wtforms.validators import DataRequired, Email, Length, Optional, Regexp, NumberRange
 
 # --- NEW IMPORTS ---
 from flask_wtf.file import FileField, FileAllowed
@@ -67,3 +67,30 @@ class EditEmployeeForm(FlaskForm):
     bank_account_num = StringField('Bank Account No.', validators=[Optional(), Length(max=30)])
     
     submit = SubmitField('Update Employee Record')
+    
+# --- NEW FORM ---
+class LeaveBalanceForm(FlaskForm):
+    """Form for HR to set or update an employee's leave balance."""
+    employee_id = StringField('Employee ID') # For display/context only
+    leave_type = SelectField('Leave Type', choices=[
+        ('Vacation', 'Vacation Leave'),
+        ('Sick', 'Sick Leave'),
+        ('Personal', 'Personal Leave'),
+        ('Maternity', 'Maternity/Paternity Leave')
+    ], validators=[DataRequired()])
+    
+    entitlement = DecimalField('Annual Entitlement (Days)', 
+                               validators=[DataRequired(), NumberRange(min=0)], 
+                               default=0.00)
+    
+    used = DecimalField('Days Used (Correction/Adjustment)', 
+                        validators=[DataRequired(), NumberRange(min=0)], 
+                        default=0.00)
+    
+    submit = SubmitField('Save Leave Balance')
+    
+# --- NEW FORM ---
+class PasswordResetForm(FlaskForm):
+    """Form for Admin to reset an employee's password."""
+    new_password = PasswordField('New Password', validators=[DataRequired(), Length(min=6)])
+    submit = SubmitField('Reset Password')
