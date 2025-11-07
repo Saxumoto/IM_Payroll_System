@@ -4,8 +4,8 @@ from app import db, login
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin 
 from flask import url_for
-from datetime import datetime, time # <-- UPDATED: Added 'time' for schedules
-from decimal import Decimal # <-- NEW IMPORT
+from datetime import datetime, time 
+from decimal import Decimal 
 
 class User(UserMixin, db.Model): 
     __tablename__ = 'user'
@@ -16,7 +16,7 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(128)) 
     
     employee = db.relationship('Employee', back_populates='user', uselist=False)
-    audit_logs = db.relationship('AuditLog', backref='user', lazy='dynamic') # NEW RELATIONSHIP
+    audit_logs = db.relationship('AuditLog', backref='user', lazy='dynamic') 
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -61,7 +61,6 @@ class Employee(db.Model):
         return url_for('main.get_uploaded_file', filename=filename_to_use)
 
 
-# --- NEW MODEL: Leave Balance ---
 class LeaveBalance(db.Model):
     """
     Stores the accrued and used leave days for an employee.
@@ -70,13 +69,12 @@ class LeaveBalance(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
-    leave_type = db.Column(db.String(50), nullable=False) # e.g., 'Vacation', 'Sick'
-    entitlement = db.Column(db.Numeric(5, 2), nullable=False, default=0.00) # Annual entitlement
-    used = db.Column(db.Numeric(5, 2), nullable=False, default=0.00) # Days used
+    leave_type = db.Column(db.String(50), nullable=False) 
+    entitlement = db.Column(db.Numeric(5, 2), nullable=False, default=0.00) 
+    used = db.Column(db.Numeric(5, 2), nullable=False, default=0.00) 
     
     employee = db.relationship('Employee', back_populates='leave_balances')
     
-    # Ensures an employee can only have one balance per leave type
     __table_args__ = (db.UniqueConstraint('employee_id', 'leave_type', name='_employee_leave_type_uc'),)
     
     @property
@@ -86,7 +84,6 @@ class LeaveBalance(db.Model):
     def __repr__(self):
         return f'<Balance {self.leave_type} for {self.employee.employee_id_number}>'
 
-# ... (EmployeeSchedule, AttendanceLog, PayrollRun, Payslip, LeaveRequest models follow) ...
 class EmployeeSchedule(db.Model):
     """
     Stores employee's regular work schedule.
@@ -95,8 +92,8 @@ class EmployeeSchedule(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), unique=True, nullable=False)
-    start_time = db.Column(db.Time, nullable=False, default=time(9, 0, 0)) # Default 9:00 AM
-    end_time = db.Column(db.Time, nullable=False, default=time(18, 0, 0))   # Default 6:00 PM
+    start_time = db.Column(db.Time, nullable=False, default=time(9, 0, 0)) 
+    end_time = db.Column(db.Time, nullable=False, default=time(18, 0, 0))   
     work_hours_per_day = db.Column(db.Numeric(4, 2), nullable=False, default=Decimal('8.00')) 
 
     employee = db.relationship('Employee', back_populates='schedules')
@@ -104,7 +101,6 @@ class EmployeeSchedule(db.Model):
     def __repr__(self):
         return f'<Schedule for {self.employee.employee_id_number}>'
 
-# --- NEW MODEL: Attendance Log ---
 class AttendanceLog(db.Model):
     """
     Stores raw clock in/out data.
@@ -114,8 +110,8 @@ class AttendanceLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    event_type = db.Column(db.String(20), nullable=False) # e.g., 'IN', 'OUT', 'ADJUST'
-    source = db.Column(db.String(50), nullable=False, default='Manual') # e.g., 'API', 'HR Manual'
+    event_type = db.Column(db.String(20), nullable=False) 
+    source = db.Column(db.String(50), nullable=False, default='Manual') 
     
     employee = db.relationship('Employee', back_populates='attendance_logs')
 
@@ -126,9 +122,10 @@ class AttendanceLog(db.Model):
 class PayrollRun(db.Model):
     __tablename__ = 'payroll_run'
     id = db.Column(db.Integer, primary_key=True)
-    pay_period_start = db.Column(db.Date, nullable=False)
-    pay_period_end = db.Column(db.Date, nullable=False)
-    pay_date = db.Column(db.Date, nullable=False)
+    # FIX: Set Date columns to nullable=True
+    pay_period_start = db.Column(db.Date, nullable=True) 
+    pay_period_end = db.Column(db.Date, nullable=True)   
+    pay_date = db.Column(db.Date, nullable=True)         
     total_gross_pay = db.Column(db.Numeric(12, 2), default=0.00)
     total_deductions = db.Column(db.Numeric(12, 2), default=0.00)
     total_net_pay = db.Column(db.Numeric(12, 2), default=0.00)
@@ -147,10 +144,10 @@ class Payslip(db.Model):
     employee = db.relationship('Employee', back_populates='payslips')
     payroll_run = db.relationship('PayrollRun', back_populates='payslips')
     
-    # T&A Metrics (NEW)
-    regular_hours = db.Column(db.Numeric(10, 2), default=0.00) # Total regular hours worked
-    overtime_hours = db.Column(db.Numeric(10, 2), default=0.00) # Total overtime hours earned
-    late_deductions = db.Column(db.Numeric(10, 2), default=0.00) # Lateness penalties
+    # T&A Metrics
+    regular_hours = db.Column(db.Numeric(10, 2), default=0.00) 
+    overtime_hours = db.Column(db.Numeric(10, 2), default=0.00) 
+    late_deductions = db.Column(db.Numeric(10, 2), default=0.00) 
 
     gross_salary = db.Column(db.Numeric(10, 2), nullable=False)
     sss_deduction = db.Column(db.Numeric(10, 2), default=0.00)
@@ -173,20 +170,18 @@ class LeaveRequest(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
-    leave_type = db.Column(db.String(50), nullable=False) # e.g., 'Vacation', 'Sick'
+    leave_type = db.Column(db.String(50), nullable=False) 
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     reason = db.Column(db.Text)
-    status = db.Column(db.String(20), nullable=False, default='Pending') # Pending, Approved, Rejected
+    status = db.Column(db.String(20), nullable=False, default='Pending') 
     requested_on = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
-    # This links back to the Employee model
     employee = db.relationship('Employee', back_populates='leave_requests')
 
     def __repr__(self):
         return f'<LeaveRequest {self.id} by {self.employee.first_name}>'
 
-# --- NEW MODEL: Audit Log ---
 class AuditLog(db.Model):
     """
     Tracks sensitive administrative actions for security and compliance.
@@ -195,9 +190,9 @@ class AuditLog(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Admin who performed the action
-    action = db.Column(db.String(100), nullable=False) # e.g., 'DELETE_PAYSLIP', 'PASSWORD_RESET', 'DELETE_LOG'
-    details = db.Column(db.Text, nullable=True) # Descriptive text of the action/data changed
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) 
+    action = db.Column(db.String(100), nullable=False) 
+    details = db.Column(db.Text, nullable=True) 
 
     def __repr__(self):
         return f"<AuditLog {self.action} by {self.user_id} on {self.timestamp}>"

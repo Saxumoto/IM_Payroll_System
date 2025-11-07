@@ -15,8 +15,14 @@
             <h5 class="mb-1 text-primary">{{ slip.employee.first_name }} {{ slip.employee.last_name }}</h5>
             <small class="text-muted">Employee ID: {{ slip.employee.employee_id_number }} | Position: {{ slip.employee.position }}</small>
             <p class="mt-2 mb-0">
-                <span class="badge bg-warning">Period: {{ slip.payroll_run.pay_period_start.strftime('%b %d') }} - {{ slip.payroll_run.pay_period_end.strftime('%b %d, %Y') }}</span>
-                <span class="badge bg-success">Paid Date: {{ slip.payroll_run.pay_date.strftime('%Y-%m-%d') }}</span>
+                <span class="badge bg-warning">
+                    Period: 
+                    {{ slip.payroll_run.pay_period_start.strftime('%b %d') if slip.payroll_run.pay_period_start else 'N/A' }} - 
+                    {{ slip.payroll_run.pay_period_end.strftime('%b %d, %Y') if slip.payroll_run.pay_period_end else 'N/A' }}
+                </span>
+                <span class="badge bg-success">
+                    Paid Date: {{ slip.payroll_run.pay_date.strftime('%Y-%m-%d') if slip.payroll_run.pay_date else 'N/A' }}
+                </span>
             </p>
         </div>
 

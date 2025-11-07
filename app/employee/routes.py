@@ -8,6 +8,7 @@ from app import db
 from .forms import LeaveRequestForm 
 from datetime import datetime
 from sqlalchemy import desc
+from sqlalchemy.orm import joinedload # <--- NEW IMPORT for eager loading
 
 # Helper function to check if the user is currently clocked in
 def get_current_clock_status(employee_id):
@@ -91,14 +92,18 @@ def clock():
 def my_payslips():
     """Renders a list of the employee's own past payslips."""
     
+    # --- CRITICAL FIX: Eager Load PayrollRun and Filter Corrupted Data ---
     payslips = Payslip.query.filter_by(employee_id=current_user.employee.id)\
+        .options(joinedload(Payslip.payroll_run))\
         .join(PayrollRun, Payslip.payroll_run_id == PayrollRun.id)\
+        .filter(
+            PayrollRun.pay_period_start != None,
+            PayrollRun.pay_period_end != None,
+            PayrollRun.pay_date != None
+        ) \
         .order_by(PayrollRun.pay_date.desc())\
         .all()
         
-    # --- THIS IS THE FIX (Change 1 of 2) ---
-    # Removed the 'employee/' prefix
-    # This will find 'app/employee/templates/my_payslips.html'
     return render_template('my_payslips.html', payslips=payslips)
 
 
@@ -143,9 +148,6 @@ def file_leave():
             db.session.rollback()
             flash(f'An error occurred: {e}', 'danger')
 
-    # --- THIS IS THE FIX (Change 2 of 2) ---
-    # Removed the 'employee/' prefix
-    # This will find 'app/employee/templates/file_leave.html'
     return render_template('file_leave.html', form=form)
 
 
