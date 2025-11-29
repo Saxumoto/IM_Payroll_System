@@ -69,8 +69,8 @@
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('main.view_audit_logs') }}" class="btn btn-dark w-100 py-3">
-                            View Audit Logs
+                        <a href="{{ url_for('hr.manage_holidays') }}" class="btn btn-warning w-100 py-3">
+                            Manage Holidays
                         </a>
                     </div>
 
@@ -82,6 +82,14 @@
                     <div class="col-6">
                         <a href="{{ url_for('payroll.payroll_history') }}" class="btn btn-info w-100 py-3 text-white">
                             View Payroll History
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <a href="{{ url_for('main.view_audit_logs') }}" class="btn btn-dark w-100 py-2">
+                            View System Audit Logs
                         </a>
                     </div>
                 </div>

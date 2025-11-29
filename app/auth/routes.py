@@ -17,18 +17,15 @@ def register():
     
     form = RegistrationForm()
     if form.validate_on_submit():
-        
-        # --- THIS IS THE FIX for the Admin Name ---
-        # We now save the full_name from the form
         user = User(
             username=form.email.data, 
-            full_name=form.full_name.data
+            full_name=form.full_name.data,
+            role='Employee' # FIX: Force all public registrations to be 'Employee'
         )
         user.set_password(form.password.data)
         
-        # Assign 'Admin' role to the first user
-        if User.query.count() == 0:
-            user.role = 'Admin'
+        # NOTE: Auto-admin logic removed for security.
+        # To create an Admin, manually update the database row.
         
         db.session.add(user)
         db.session.commit()
@@ -57,17 +54,14 @@ def signin():
             
         login_user(user, remember=False)
         
-        # --- FIXED REDIRECT LOGIC ---
         if user.role == 'Admin':
             return redirect(url_for('main.admin_dashboard'))
         elif user.role == 'Employee':
             if user.employee: 
-                # Employee profile exists, proceed to dashboard
                 return redirect(url_for('employee.dashboard'))
             else:
-                # Employee profile is missing (awaiting HR setup)
                 flash('Your account is awaiting HR setup. Please contact your administrator.', 'warning')
-                return redirect(url_for('main.welcome')) # Send to safe page while logged in
+                return redirect(url_for('main.welcome'))
         else:
             return redirect(url_for('main.welcome'))
         

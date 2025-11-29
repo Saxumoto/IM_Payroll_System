@@ -6,6 +6,7 @@ from flask_login import UserMixin
 from flask import url_for
 from datetime import datetime, time 
 from decimal import Decimal 
+from sqlalchemy import event, select, func # Required for Triggers
 
 class User(UserMixin, db.Model): 
     __tablename__ = 'user'
@@ -51,7 +52,6 @@ class Employee(db.Model):
     attendance_logs = db.relationship('AttendanceLog', back_populates='employee', lazy='dynamic')
     leave_balances = db.relationship('LeaveBalance', back_populates='employee', lazy='select')
 
-
     def __repr__(self):
         return f'<Employee {self.employee_id_number}>'
     
@@ -75,6 +75,7 @@ class LeaveBalance(db.Model):
     
     employee = db.relationship('Employee', back_populates='leave_balances')
     
+    # Ensures an employee has only one balance record per leave type
     __table_args__ = (db.UniqueConstraint('employee_id', 'leave_type', name='_employee_leave_type_uc'),)
     
     @property
@@ -83,6 +84,7 @@ class LeaveBalance(db.Model):
 
     def __repr__(self):
         return f'<Balance {self.leave_type} for {self.employee.employee_id_number}>'
+
 
 class EmployeeSchedule(db.Model):
     """
@@ -100,6 +102,7 @@ class EmployeeSchedule(db.Model):
 
     def __repr__(self):
         return f'<Schedule for {self.employee.employee_id_number}>'
+
 
 class AttendanceLog(db.Model):
     """
@@ -122,7 +125,6 @@ class AttendanceLog(db.Model):
 class PayrollRun(db.Model):
     __tablename__ = 'payroll_run'
     id = db.Column(db.Integer, primary_key=True)
-    # FIX: Set Date columns to nullable=True
     pay_period_start = db.Column(db.Date, nullable=True) 
     pay_period_end = db.Column(db.Date, nullable=True)   
     pay_date = db.Column(db.Date, nullable=True)         
@@ -182,6 +184,7 @@ class LeaveRequest(db.Model):
     def __repr__(self):
         return f'<LeaveRequest {self.id} by {self.employee.first_name}>'
 
+
 class AuditLog(db.Model):
     """
     Tracks sensitive administrative actions for security and compliance.
@@ -196,3 +199,84 @@ class AuditLog(db.Model):
 
     def __repr__(self):
         return f"<AuditLog {self.action} by {self.user_id} on {self.timestamp}>"
+
+
+# --- NEW: HOLIDAY TABLE ---
+class Holiday(db.Model):
+    __tablename__ = 'holiday'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False) 
+    date = db.Column(db.Date, nullable=False)       
+    type = db.Column(db.String(20), default='Regular') # 'Regular' or 'Special'
+    
+    def __repr__(self):
+        return f'<Holiday {self.name} on {self.date}>'
+
+
+# ==========================================
+# DATABASE TRIGGERS (ORM EVENTS)
+# ==========================================
+
+# 1. TRIGGER: Auto-Update Payroll Run Totals
+# This runs whenever a Payslip is Inserted, Updated, or Deleted
+def update_payroll_run_totals(mapper, connection, target):
+    """
+    Trigger that recalculates the total_gross_pay, total_deductions, and total_net_pay
+    of a PayrollRun whenever a specific Payslip is modified.
+    """
+    run_id = target.payroll_run_id
+    payroll_run_table = PayrollRun.__table__
+    payslip_table = Payslip.__table__
+
+    # Calculate new totals from the database
+    totals = connection.execute(
+        select(
+            func.sum(payslip_table.c.gross_salary),
+            func.sum(payslip_table.c.total_deductions),
+            func.sum(payslip_table.c.net_pay)
+        ).where(payslip_table.c.payroll_run_id == run_id)
+    ).first()
+
+    # Handle case where no payslips exist (sets totals to 0)
+    total_gross = totals[0] or 0
+    total_deductions = totals[1] or 0
+    total_net = totals[2] or 0
+
+    # Update the parent PayrollRun record directly
+    connection.execute(
+        payroll_run_table.update()
+        .where(payroll_run_table.c.id == run_id)
+        .values(
+            total_gross_pay=total_gross,
+            total_deductions=total_deductions,
+            total_net_pay=total_net
+        )
+    )
+
+# Attach the function to Payslip events
+event.listen(Payslip, 'after_insert', update_payroll_run_totals)
+event.listen(Payslip, 'after_update', update_payroll_run_totals)
+event.listen(Payslip, 'after_delete', update_payroll_run_totals)
+
+
+# 2. TRIGGER: Auto-Initialize Leave Balances
+# This runs immediately after a new Employee is inserted
+@event.listens_for(Employee, 'after_insert')
+def create_default_leave_balances(mapper, connection, target):
+    """
+    Trigger that automatically creates 'Vacation', 'Sick', and 'Personal' 
+    leave balance records with 0.00 entitlement for every new employee.
+    """
+    leave_balance_table = LeaveBalance.__table__
+    
+    defaults = ['Vacation', 'Sick', 'Personal']
+    
+    for leave_type in defaults:
+        connection.execute(
+            leave_balance_table.insert().values(
+                employee_id=target.id,
+                leave_type=leave_type,
+                entitlement=0.00,
+                used=0.00
+            )
+        )

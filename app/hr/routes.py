@@ -4,13 +4,13 @@ from flask import render_template, redirect, url_for, flash, request, abort, cur
 from flask_login import login_required, current_user
 from app.hr import bp
 from app import db
-from app.models.user import User, Employee, LeaveRequest, LeaveBalance, AuditLog
+# FIX: Added Holiday to imports
+from app.models.user import User, Employee, LeaveRequest, LeaveBalance, AuditLog, Holiday 
 from functools import wraps
-from app.hr.forms import AddEmployeeForm, EditEmployeeForm, LeaveBalanceForm, PasswordResetForm
+# FIX: Added HolidayForm to imports
+from app.hr.forms import AddEmployeeForm, EditEmployeeForm, LeaveBalanceForm, PasswordResetForm, HolidayForm
 from datetime import date
 from decimal import Decimal
-
-# File Upload Imports
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -99,7 +99,6 @@ def add_new_employee():
             db.session.rollback()
             flash(f'An error occurred while saving the employee data: {e}', 'danger')
     
-    # Renders 'app/hr/templates/add_employee.html'
     return render_template('add_employee.html', form=form)
 
 
@@ -110,12 +109,11 @@ def manage_all_staff():
     employees = db.session.query(Employee).join(User, Employee.user_id == User.id)\
         .filter(User.role != 'Admin')\
         .all()
-    # Renders 'app/hr/templates/manage_staff.html'
     return render_template('manage_staff.html', employees=employees)
 
-# --- NEW ROUTE: Password Reset Utility ---
+
 @bp.route('/employee/reset_password/<int:id>', methods=['GET', 'POST'])
-@role_required('Admin') # Only Admin role can reset passwords
+@role_required('Admin')
 def reset_employee_password(id):
     employee = db.session.get(Employee, id)
     if not employee:
@@ -132,7 +130,6 @@ def reset_employee_password(id):
     if form.validate_on_submit():
         try:
             user.set_password(form.new_password.data)
-            # --- AUDIT LOGGING ---
             log_admin_action(
                 action='PASSWORD_RESET',
                 details=f"Reset password for Employee ID: {employee.employee_id_number} ({employee.user.username})"
@@ -164,7 +161,6 @@ def edit_staff_member(id):
         employee.employee_id_number = form.employee_id_number.data
         employee.first_name = form.first_name.data
         employee.last_name = form.last_name.data
-        # --- SYNTAX ERROR FIX WAS HERE ---
         employee.position = form.position.data 
         employee.date_hired = form.date_hired.data
         employee.salary_rate = form.salary_rate.data
@@ -191,7 +187,6 @@ def edit_staff_member(id):
         form.pagibig_num.data = employee.pagibig_num
         form.bank_account_num.data = employee.bank_account_num
     
-    # Renders 'app/hr/templates/edit_employee.html'
     return render_template('edit_employee.html', form=form, employee=employee)
 
 
@@ -203,7 +198,6 @@ def delete_staff_member(id):
         flash('Error: Employee not found.', 'danger')
         return redirect(url_for('hr.manage_all_staff'))
     
-    # Pre-fetch data for the audit log
     employee_id_num = employee.employee_id_number
     employee_last_name = employee.last_name
 
@@ -214,7 +208,6 @@ def delete_staff_member(id):
             if os.path.exists(photo_path):
                 os.remove(photo_path)
                 
-        # --- AUDIT LOGGING ---
         log_admin_action(
             action='DELETE_EMPLOYEE',
             details=f"Deleted employee record and user account for ID: {employee_id_num} ({employee_last_name})."
@@ -234,13 +227,10 @@ def delete_staff_member(id):
 @bp.route('/leave_requests')
 @role_required('Payroll_Admin')
 def manage_all_leave_requests():
-    """Shows a full list of all leave requests (pending, approved, etc)."""
+    """Shows a full list of all leave requests."""
     all_requests = LeaveRequest.query.join(Employee, LeaveRequest.employee_id == Employee.id)\
         .order_by(LeaveRequest.status.asc(), LeaveRequest.requested_on.desc())\
         .all()
-        
-    # --- TEMPLATE PATH FIX ---
-    # Renders 'app/hr/templates/manage_leave_requests.html'
     return render_template('manage_leave_requests.html', all_requests=all_requests)
 
 
@@ -260,12 +250,10 @@ def update_leave_request_final_status(request_id, new_status):
     try:
         details_log = f"Status changed to {new_status} for Leave ID #{leave_request.id} ({leave_request.leave_type}). Employee: {leave_request.employee.last_name}."
         
-        # --- CRITICAL NEW LOGIC: Deduct Balance on Approval ---
+        # Deduct Balance on Approval
         if new_status == 'Approved':
-            
             leave_days = calculate_leave_days(leave_request.start_date, leave_request.end_date)
             
-            # Find the employee's leave balance record for this leave type
             balance = LeaveBalance.query.filter_by(
                 employee_id=leave_request.employee_id,
                 leave_type=leave_request.leave_type
@@ -275,26 +263,16 @@ def update_leave_request_final_status(request_id, new_status):
                 flash(f"Error: No balance found for {leave_request.leave_type}. Cannot approve.", 'danger')
                 return redirect(url_for('hr.manage_all_leave_requests'))
 
-            # Check for sufficient remaining balance
             if balance.remaining < leave_days:
                 flash(f"Error: Insufficient balance ({balance.remaining} days remaining). Cannot approve.", 'danger')
                 return redirect(url_for('hr.manage_all_leave_requests'))
             
-            # Deduct the used days
             balance.used += Decimal(leave_days)
             db.session.add(balance)
-            
             details_log += f" Deducted {leave_days} days. New used balance: {balance.used}."
 
-
-        # --- Update Request Status ---
         leave_request.status = new_status
-        
-        # --- AUDIT LOGGING ---
-        log_admin_action(
-            action='UPDATE_LEAVE_STATUS',
-            details=details_log
-        )
+        log_admin_action(action='UPDATE_LEAVE_STATUS', details=details_log)
         
         db.session.commit()
         flash(f'Leave request has been {new_status.lower()}.', 'success')
@@ -306,15 +284,11 @@ def update_leave_request_final_status(request_id, new_status):
     return redirect(url_for('hr.manage_all_leave_requests'))
 
 
-# --- NEW ROUTES for Leave Balance Management ---
-
 @bp.route('/leave_balances')
 @role_required('Payroll_Admin')
 def manage_leave_balances():
     """Shows all employees' leave balances."""
-    # Fetch employees and eagerly load their balances for display
     employees = Employee.query.options(db.joinedload(Employee.leave_balances)).all()
-    
     return render_template('manage_leave_balances.html', employees=employees)
 
 
@@ -329,28 +303,18 @@ def edit_leave_balance(employee_id, leave_type):
         
     balance = LeaveBalance.query.filter_by(employee_id=employee_id, leave_type=leave_type).first()
     
-    # Initialize form. If balance exists, pass the object for pre-population.
     form = LeaveBalanceForm(obj=balance)
-    
-    # Manually set the leave_type field to the current type and disable it
     form.leave_type.data = leave_type
-    
-    # Set context for the form template
     form.employee_id.data = employee.employee_id_number 
 
     if form.validate_on_submit():
         try:
             if not balance:
-                # Create new record if one doesn't exist
-                balance = LeaveBalance(
-                    employee_id=employee_id,
-                    leave_type=leave_type
-                )
+                balance = LeaveBalance(employee_id=employee_id, leave_type=leave_type)
                 
             balance.entitlement = form.entitlement.data
             balance.used = form.used.data
             
-            # --- AUDIT LOGGING ---
             log_admin_action(
                 action='UPDATE_LEAVE_BALANCE',
                 details=f"Updated {leave_type} balance for Employee ID: {employee.employee_id_number}. Entitlement: {balance.entitlement}, Used: {balance.used}"
@@ -358,12 +322,52 @@ def edit_leave_balance(employee_id, leave_type):
             
             db.session.add(balance)
             db.session.commit()
-            
             flash(f"Leave balance for {employee.first_name} ({leave_type}) updated successfully.", 'success')
             return redirect(url_for('hr.manage_leave_balances'))
-            
         except Exception as e:
             db.session.rollback()
             flash(f"Error saving leave balance: {e}", 'danger')
             
     return render_template('edit_leave_balance.html', form=form, employee=employee, leave_type=leave_type)
+
+
+# --- NEW HOLIDAY ROUTES (This fixes the error) ---
+
+@bp.route('/holidays')
+@role_required('Payroll_Admin')
+def manage_holidays():
+    holidays = Holiday.query.order_by(Holiday.date.desc()).all()
+    return render_template('manage_holidays.html', holidays=holidays)
+
+@bp.route('/holidays/add', methods=['GET', 'POST'])
+@role_required('Payroll_Admin')
+def add_holiday():
+    form = HolidayForm()
+    if form.validate_on_submit():
+        holiday = Holiday(
+            name=form.name.data,
+            date=form.date.data,
+            type=form.type.data
+        )
+        db.session.add(holiday)
+        
+        log_admin_action('ADD_HOLIDAY', f"Added {holiday.type} holiday: {holiday.name} on {holiday.date}")
+        
+        db.session.commit()
+        flash('Holiday added successfully!', 'success')
+        return redirect(url_for('hr.manage_holidays'))
+        
+    return render_template('add_holiday.html', form=form)
+
+@bp.route('/holidays/delete/<int:id>', methods=['POST'])
+@role_required('Payroll_Admin')
+def delete_holiday(id):
+    holiday = db.session.get(Holiday, id)
+    if holiday:
+        log_admin_action('DELETE_HOLIDAY', f"Deleted holiday: {holiday.name} on {holiday.date}")
+        db.session.delete(holiday)
+        db.session.commit()
+        flash('Holiday deleted.', 'success')
+    else:
+        flash('Holiday not found.', 'danger')
+    return redirect(url_for('hr.manage_holidays'))
