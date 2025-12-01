@@ -4,10 +4,8 @@ from flask import render_template, redirect, url_for, flash, request, abort, cur
 from flask_login import login_required, current_user
 from app.hr import bp
 from app import db
-# FIX: Added Holiday to imports
 from app.models.user import User, Employee, LeaveRequest, LeaveBalance, AuditLog, Holiday 
 from functools import wraps
-# FIX: Added HolidayForm to imports
 from app.hr.forms import AddEmployeeForm, EditEmployeeForm, LeaveBalanceForm, PasswordResetForm, HolidayForm
 from datetime import date
 from decimal import Decimal
@@ -17,20 +15,16 @@ from werkzeug.utils import secure_filename
 
 # --- AUDIT LOG HELPER FUNCTION ---
 def log_admin_action(action, details):
-    """Records a critical administrative action in the AuditLog."""
     log = AuditLog(
         user_id=current_user.id,
         action=action,
         details=details
     )
     db.session.add(log)
-    # Note: Commit is handled by the calling route's try/except block
 
 def calculate_leave_days(start_date, end_date):
-    """Calculates the number of full days between two dates, inclusive."""
     if start_date is None or end_date is None:
         return 0
-    # Calculate difference in days and add 1 (to include the start day)
     return (end_date - start_date).days + 1
 
 def save_picture(form_picture):
@@ -105,7 +99,6 @@ def add_new_employee():
 @bp.route('/manage_staff')
 @role_required('Payroll_Admin')
 def manage_all_staff():
-    """Shows a full list of all employee records."""
     employees = db.session.query(Employee).join(User, Employee.user_id == User.id)\
         .filter(User.role != 'Admin')\
         .all()
@@ -227,7 +220,6 @@ def delete_staff_member(id):
 @bp.route('/leave_requests')
 @role_required('Payroll_Admin')
 def manage_all_leave_requests():
-    """Shows a full list of all leave requests."""
     all_requests = LeaveRequest.query.join(Employee, LeaveRequest.employee_id == Employee.id)\
         .order_by(LeaveRequest.status.asc(), LeaveRequest.requested_on.desc())\
         .all()
@@ -237,7 +229,7 @@ def manage_all_leave_requests():
 @bp.route('/leave_requests/update/<int:request_id>/<string:new_status>', methods=['POST'])
 @role_required('Payroll_Admin')
 def update_leave_request_final_status(request_id, new_status):
-    """Approves or Rejects a leave request and updates the balance."""
+    """Approves or Rejects a leave request. Balance update is handled by DB Trigger."""
     leave_request = db.session.get(LeaveRequest, request_id)
     
     if not leave_request:
@@ -250,7 +242,7 @@ def update_leave_request_final_status(request_id, new_status):
     try:
         details_log = f"Status changed to {new_status} for Leave ID #{leave_request.id} ({leave_request.leave_type}). Employee: {leave_request.employee.last_name}."
         
-        # Deduct Balance on Approval
+        # VALIDATION: Check balance before Approval (Prevent negative balance)
         if new_status == 'Approved':
             leave_days = calculate_leave_days(leave_request.start_date, leave_request.end_date)
             
@@ -263,14 +255,14 @@ def update_leave_request_final_status(request_id, new_status):
                 flash(f"Error: No balance found for {leave_request.leave_type}. Cannot approve.", 'danger')
                 return redirect(url_for('hr.manage_all_leave_requests'))
 
+            # Check if they have enough days remaining
             if balance.remaining < leave_days:
                 flash(f"Error: Insufficient balance ({balance.remaining} days remaining). Cannot approve.", 'danger')
                 return redirect(url_for('hr.manage_all_leave_requests'))
             
-            balance.used += Decimal(leave_days)
-            db.session.add(balance)
-            details_log += f" Deducted {leave_days} days. New used balance: {balance.used}."
+            # NOTE: We DO NOT manually deduct here anymore. The trigger in user.py does it.
 
+        # Update Status (Trigger fires on commit)
         leave_request.status = new_status
         log_admin_action(action='UPDATE_LEAVE_STATUS', details=details_log)
         
@@ -287,7 +279,6 @@ def update_leave_request_final_status(request_id, new_status):
 @bp.route('/leave_balances')
 @role_required('Payroll_Admin')
 def manage_leave_balances():
-    """Shows all employees' leave balances."""
     employees = Employee.query.options(db.joinedload(Employee.leave_balances)).all()
     return render_template('manage_leave_balances.html', employees=employees)
 
@@ -295,7 +286,6 @@ def manage_leave_balances():
 @bp.route('/leave_balances/edit/<int:employee_id>/<string:leave_type>', methods=['GET', 'POST'])
 @role_required('Payroll_Admin')
 def edit_leave_balance(employee_id, leave_type):
-    """Edits or creates a specific leave balance record for an employee."""
     employee = db.session.get(Employee, employee_id)
     if not employee:
         flash('Employee not found.', 'danger')
@@ -330,8 +320,6 @@ def edit_leave_balance(employee_id, leave_type):
             
     return render_template('edit_leave_balance.html', form=form, employee=employee, leave_type=leave_type)
 
-
-# --- NEW HOLIDAY ROUTES (This fixes the error) ---
 
 @bp.route('/holidays')
 @role_required('Payroll_Admin')

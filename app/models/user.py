@@ -4,9 +4,10 @@ from app import db, login
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin 
 from flask import url_for
-from datetime import datetime, time 
+from datetime import datetime, time, timedelta 
 from decimal import Decimal 
-from sqlalchemy import event, select, func # Required for Triggers
+from sqlalchemy import event, select, func
+from sqlalchemy.orm.attributes import get_history
 
 class User(UserMixin, db.Model): 
     __tablename__ = 'user'
@@ -62,9 +63,6 @@ class Employee(db.Model):
 
 
 class LeaveBalance(db.Model):
-    """
-    Stores the accrued and used leave days for an employee.
-    """
     __tablename__ = 'leave_balance'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -75,7 +73,6 @@ class LeaveBalance(db.Model):
     
     employee = db.relationship('Employee', back_populates='leave_balances')
     
-    # Ensures an employee has only one balance record per leave type
     __table_args__ = (db.UniqueConstraint('employee_id', 'leave_type', name='_employee_leave_type_uc'),)
     
     @property
@@ -87,9 +84,6 @@ class LeaveBalance(db.Model):
 
 
 class EmployeeSchedule(db.Model):
-    """
-    Stores employee's regular work schedule.
-    """
     __tablename__ = 'employee_schedule'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -105,9 +99,6 @@ class EmployeeSchedule(db.Model):
 
 
 class AttendanceLog(db.Model):
-    """
-    Stores raw clock in/out data.
-    """
     __tablename__ = 'attendance_log'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -165,9 +156,6 @@ class Payslip(db.Model):
 
 
 class LeaveRequest(db.Model):
-    """
-    Represents a single leave request from an employee.
-    """
     __tablename__ = 'leave_request'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -186,9 +174,6 @@ class LeaveRequest(db.Model):
 
 
 class AuditLog(db.Model):
-    """
-    Tracks sensitive administrative actions for security and compliance.
-    """
     __tablename__ = 'audit_log'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -201,13 +186,12 @@ class AuditLog(db.Model):
         return f"<AuditLog {self.action} by {self.user_id} on {self.timestamp}>"
 
 
-# --- NEW: HOLIDAY TABLE ---
 class Holiday(db.Model):
     __tablename__ = 'holiday'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), nullable=False) 
     date = db.Column(db.Date, nullable=False)       
-    type = db.Column(db.String(20), default='Regular') # 'Regular' or 'Special'
+    type = db.Column(db.String(20), default='Regular') 
     
     def __repr__(self):
         return f'<Holiday {self.name} on {self.date}>'
@@ -218,17 +202,11 @@ class Holiday(db.Model):
 # ==========================================
 
 # 1. TRIGGER: Auto-Update Payroll Run Totals
-# This runs whenever a Payslip is Inserted, Updated, or Deleted
 def update_payroll_run_totals(mapper, connection, target):
-    """
-    Trigger that recalculates the total_gross_pay, total_deductions, and total_net_pay
-    of a PayrollRun whenever a specific Payslip is modified.
-    """
     run_id = target.payroll_run_id
     payroll_run_table = PayrollRun.__table__
     payslip_table = Payslip.__table__
 
-    # Calculate new totals from the database
     totals = connection.execute(
         select(
             func.sum(payslip_table.c.gross_salary),
@@ -237,12 +215,10 @@ def update_payroll_run_totals(mapper, connection, target):
         ).where(payslip_table.c.payroll_run_id == run_id)
     ).first()
 
-    # Handle case where no payslips exist (sets totals to 0)
     total_gross = totals[0] or 0
     total_deductions = totals[1] or 0
     total_net = totals[2] or 0
 
-    # Update the parent PayrollRun record directly
     connection.execute(
         payroll_run_table.update()
         .where(payroll_run_table.c.id == run_id)
@@ -253,24 +229,16 @@ def update_payroll_run_totals(mapper, connection, target):
         )
     )
 
-# Attach the function to Payslip events
 event.listen(Payslip, 'after_insert', update_payroll_run_totals)
 event.listen(Payslip, 'after_update', update_payroll_run_totals)
 event.listen(Payslip, 'after_delete', update_payroll_run_totals)
 
 
 # 2. TRIGGER: Auto-Initialize Leave Balances
-# This runs immediately after a new Employee is inserted
 @event.listens_for(Employee, 'after_insert')
 def create_default_leave_balances(mapper, connection, target):
-    """
-    Trigger that automatically creates 'Vacation', 'Sick', and 'Personal' 
-    leave balance records with 0.00 entitlement for every new employee.
-    """
     leave_balance_table = LeaveBalance.__table__
-    
     defaults = ['Vacation', 'Sick', 'Personal']
-    
     for leave_type in defaults:
         connection.execute(
             leave_balance_table.insert().values(
@@ -279,4 +247,89 @@ def create_default_leave_balances(mapper, connection, target):
                 entitlement=0.00,
                 used=0.00
             )
+        )
+
+# =======================================================
+# HELPER: CALCULATE WORKING DAYS (Excludes Weekends & Holidays)
+# =======================================================
+def count_working_days(start_date, end_date, connection):
+    """
+    Iterates through the date range and counts only business days.
+    """
+    holiday_table = Holiday.__table__
+    
+    stmt = select(holiday_table.c.date).where(
+        (holiday_table.c.date >= start_date) & 
+        (holiday_table.c.date <= end_date)
+    )
+    holidays = {row[0] for row in connection.execute(stmt)}
+    
+    total_days = 0
+    current = start_date
+    while current <= end_date:
+        is_weekend = current.weekday() >= 5
+        is_holiday = current in holidays
+        
+        if not is_weekend and not is_holiday:
+            total_days += 1
+            
+        current += timedelta(days=1)
+        
+    return Decimal(total_days)
+
+
+# =======================================================
+# 3. TRIGGER: AUTOMATIC LEAVE BALANCE MANAGEMENT
+# =======================================================
+
+@event.listens_for(LeaveRequest, 'after_update')
+def update_balance_on_leave_change(mapper, connection, target):
+    status_history = get_history(target, 'status')
+    if not status_history.has_changes():
+        return
+
+    days_to_process = count_working_days(target.start_date, target.end_date, connection)
+    lb_table = LeaveBalance.__table__
+    
+    new_status = target.status
+    old_status = status_history.deleted[0] if status_history.deleted else None
+
+    # A. Approved -> Deduct
+    if new_status == 'Approved' and old_status != 'Approved':
+        connection.execute(
+            lb_table.update()
+            .where((lb_table.c.employee_id == target.employee_id) & (lb_table.c.leave_type == target.leave_type))
+            .values(used=lb_table.c.used + days_to_process)
+        )
+        
+    # B. Un-Approved -> Refund
+    elif old_status == 'Approved' and new_status != 'Approved':
+        connection.execute(
+            lb_table.update()
+            .where((lb_table.c.employee_id == target.employee_id) & (lb_table.c.leave_type == target.leave_type))
+            .values(used=lb_table.c.used - days_to_process)
+        )
+
+@event.listens_for(LeaveRequest, 'after_insert')
+def deduct_balance_on_insert(mapper, connection, target):
+    if target.status == 'Approved':
+        days_to_process = count_working_days(target.start_date, target.end_date, connection)
+        lb_table = LeaveBalance.__table__
+        
+        connection.execute(
+            lb_table.update()
+            .where((lb_table.c.employee_id == target.employee_id) & (lb_table.c.leave_type == target.leave_type))
+            .values(used=lb_table.c.used + days_to_process)
+        )
+
+@event.listens_for(LeaveRequest, 'after_delete')
+def refund_balance_on_delete(mapper, connection, target):
+    if target.status == 'Approved':
+        days_to_process = count_working_days(target.start_date, target.end_date, connection)
+        lb_table = LeaveBalance.__table__
+        
+        connection.execute(
+            lb_table.update()
+            .where((lb_table.c.employee_id == target.employee_id) & (lb_table.c.leave_type == target.leave_type))
+            .values(used=lb_table.c.used - days_to_process)
         )

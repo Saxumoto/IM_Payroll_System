@@ -39,8 +39,7 @@
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             Overtime Pay ({{ "{:,.2f}".format(slip.overtime_hours or 0.00) }} hrs)
-                            {% set late_deduction_amount = slip.late_deductions if slip.late_deductions is not none else 0 %}
-                            <span>₱{{ "{:,.2f}".format(slip.gross_salary - slip.employee.salary_rate + late_deduction_amount) }}</span>
+                            <span>₱{{ "{:,.2f}".format(((slip.overtime_hours or 0)|float) * ((slip.employee.salary_rate|float) / 160) * 1.25) }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center bg-light fw-bold">
                             Total Gross Pay (Adjusted)
