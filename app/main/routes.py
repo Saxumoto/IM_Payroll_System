@@ -1,6 +1,6 @@
 # app/main/routes.py
 
-from flask import render_template, redirect, url_for, flash, current_app, send_from_directory
+from flask import render_template, redirect, url_for, flash, current_app, send_from_directory, abort
 from flask_login import login_required, current_user
 from app.main import bp
 from app.models.user import User, Employee, LeaveRequest, AuditLog # Import AuditLog
@@ -56,7 +56,20 @@ def admin_dashboard(): # RENAMED from dashboard()
 @login_required
 def get_uploaded_file(filename):
     """Securely serves files from the upload folder."""
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+    from werkzeug.utils import secure_filename
+    
+    # Sanitize filename to prevent path traversal
+    safe_filename = secure_filename(filename)
+    if not safe_filename or safe_filename != filename:
+        abort(404)
+    
+    # Validate file extension
+    _, ext = os.path.splitext(safe_filename)
+    allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'gif'})
+    if ext.lower().lstrip('.') not in allowed_extensions:
+        abort(404)
+    
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], safe_filename)
 
 
 # --- NEW ROUTE: View Audit Logs ---

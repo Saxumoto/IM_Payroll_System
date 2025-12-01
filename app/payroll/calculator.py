@@ -55,7 +55,12 @@ def calculate_withholding_tax(taxable_income):
             excess = taxable_income - excess_over
             tax = base_tax + (excess * (Decimal(str(tax_rate_percent)) / 100))
             return tax.quantize(Decimal('0.01'))
-    return Decimal('0.00') 
+    # For incomes above the highest bracket, use the highest bracket calculation
+    # Using the last bracket (166,666+) with 25% rate
+    last_bracket = TAX_TABLE[-1]
+    excess = taxable_income - last_bracket[1]  # excess_over
+    tax = last_bracket[2] + (excess * (Decimal(str(last_bracket[3])) / 100))  # base_tax + (excess * rate)
+    return tax.quantize(Decimal('0.01')) 
 
 # --- HELPER: TIME TO DECIMAL ---
 def time_to_decimal_hours(t):
@@ -197,7 +202,8 @@ def calculate_payroll_for_employee(employee, time_data):
         prorate_factor = total_reg_hours / HOURS_PER_MONTH
         prorated_base = (basic_monthly_salary * prorate_factor).quantize(Decimal('0.01'))
         
-    gross_salary = (prorated_base + overtime_pay - late_deduction).quantize(Decimal('0.01'))
+    # Gross salary = base pay + overtime (late deduction is handled in deductions, not here)
+    gross_salary = (prorated_base + overtime_pay).quantize(Decimal('0.01'))
     
     statutory_base = basic_monthly_salary
     sss = calculate_sss(statutory_base)

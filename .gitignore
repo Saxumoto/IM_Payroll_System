@@ -1,5 +1,40 @@
+# Python
 venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Flask
 instance/
-venv/
-instance/
-/uploads/
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# Uploads (keep structure, ignore files)
+uploads/profile_pics/*
+!uploads/profile_pics/.gitkeep
+!uploads/profile_pics/default.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database
+*.sqbpro

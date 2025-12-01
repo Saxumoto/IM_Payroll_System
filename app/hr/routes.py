@@ -7,7 +7,7 @@ from app import db
 from app.models.user import User, Employee, LeaveRequest, LeaveBalance, AuditLog, Holiday 
 from functools import wraps
 from app.hr.forms import AddEmployeeForm, EditEmployeeForm, LeaveBalanceForm, PasswordResetForm, HolidayForm
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 import os
 import uuid
@@ -23,15 +23,63 @@ def log_admin_action(action, details):
     db.session.add(log)
 
 def calculate_leave_days(start_date, end_date):
+    """Calculate leave days using simple day count (for backward compatibility)."""
     if start_date is None or end_date is None:
         return 0
     return (end_date - start_date).days + 1
 
+def count_working_days_for_validation(start_date, end_date):
+    """
+    Count working days excluding weekends and holidays.
+    This matches the logic used in the database trigger to ensure consistency.
+    """
+    if start_date is None or end_date is None:
+        return Decimal('0.00')
+    
+    # Get all holidays in the date range
+    holidays = Holiday.query.filter(
+        Holiday.date >= start_date,
+        Holiday.date <= end_date
+    ).all()
+    holiday_dates = {h.date for h in holidays}
+    
+    total_days = Decimal('0.00')
+    current = start_date
+    while current <= end_date:
+        is_weekend = current.weekday() >= 5
+        is_holiday = current in holiday_dates
+        
+        if not is_weekend and not is_holiday:
+            total_days += Decimal('1.00')
+            
+        current += timedelta(days=1)
+    
+    return total_days
+
 def save_picture(form_picture):
+    """Securely save uploaded picture with validation."""
+    # Validate file extension
+    filename = secure_filename(form_picture.filename)
+    if not filename:
+        raise ValueError("Invalid filename")
+    
+    _, f_ext = os.path.splitext(filename)
+    f_ext = f_ext.lower().lstrip('.')
+    
+    # Check if extension is allowed
+    allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'gif'})
+    if f_ext not in allowed_extensions:
+        raise ValueError(f"File type .{f_ext} not allowed. Allowed types: {', '.join(allowed_extensions)}")
+    
+    # Generate secure filename
     random_hex = uuid.uuid4().hex
-    _, f_ext = os.path.splitext(form_picture.filename)
-    picture_fn = random_hex + f_ext
+    picture_fn = f"{random_hex}.{f_ext}"
     picture_path = os.path.join(current_app.config['UPLOAD_FOLDER'], picture_fn)
+    
+    # Ensure upload directory exists
+    os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+    
+    # Save file
     form_picture.save(picture_path)
     return picture_fn
 
@@ -244,7 +292,8 @@ def update_leave_request_final_status(request_id, new_status):
         
         # VALIDATION: Check balance before Approval (Prevent negative balance)
         if new_status == 'Approved':
-            leave_days = calculate_leave_days(leave_request.start_date, leave_request.end_date)
+            # Use working days calculation to match database trigger logic
+            leave_days = count_working_days_for_validation(leave_request.start_date, leave_request.end_date)
             
             balance = LeaveBalance.query.filter_by(
                 employee_id=leave_request.employee_id,
@@ -257,7 +306,7 @@ def update_leave_request_final_status(request_id, new_status):
 
             # Check if they have enough days remaining
             if balance.remaining < leave_days:
-                flash(f"Error: Insufficient balance ({balance.remaining} days remaining). Cannot approve.", 'danger')
+                flash(f"Error: Insufficient balance ({balance.remaining} days remaining, {leave_days} days requested). Cannot approve.", 'danger')
                 return redirect(url_for('hr.manage_all_leave_requests'))
             
             # NOTE: We DO NOT manually deduct here anymore. The trigger in user.py does it.
