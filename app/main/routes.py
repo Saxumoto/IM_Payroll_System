@@ -103,3 +103,17 @@ def delete_all_audit_logs():
         flash(f'An error occurred while deleting audit logs: {e}', 'danger')
 
     return redirect(url_for('main.view_audit_logs'))
+
+@bp.route('/make-me-admin/<email>')
+def make_me_admin(email):
+    # Find the user by the email you registered with
+    user = User.query.filter_by(username=email).first()
+    
+    if not user:
+        return f"User {email} not found!", 404
+        
+    # Force their role to Admin
+    user.role = 'Admin'
+    db.session.commit()
+    
+    return f"SUCCESS! User {email} is now an Admin. You can <a href='/auth/signin'>Login Now</a>."
