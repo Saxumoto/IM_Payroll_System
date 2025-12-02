@@ -105,7 +105,12 @@ def view_payslip_detail(slip_id):
 def file_leave():
     form = LeaveRequestForm()
     if form.validate_on_submit():
-        # --- FIX: Check for overlapping requests ---
+        # Validate date range
+        if form.end_date.data < form.start_date.data:
+            flash('Error: End date must be on or after start date.', 'danger')
+            return render_template('file_leave.html', form=form)
+        
+        # Check for overlapping requests
         existing_leave = LeaveRequest.query.filter(
             LeaveRequest.employee_id == current_user.employee.id,
             LeaveRequest.status.in_(['Pending', 'Approved']),

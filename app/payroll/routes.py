@@ -21,11 +21,20 @@ def run_payroll():
     if form.validate_on_submit():
         pay_period_start = form.pay_period_start.data
         pay_period_end = form.pay_period_end.data
+        pay_date = form.pay_date.data
+        
+        # Validate date ranges
+        if pay_period_end < pay_period_start:
+            flash('Error: Pay period end date must be on or after start date.', 'danger')
+            return render_template('payroll/run_payroll.html', form=form)
+        
+        if pay_date < pay_period_end:
+            flash('Warning: Payment date is before pay period end. Please verify.', 'warning')
         
         new_run = PayrollRun(
             pay_period_start=pay_period_start,
             pay_period_end=pay_period_end,
-            pay_date=form.pay_date.data,
+            pay_date=pay_date,
             status='Processing'
         )
         db.session.add(new_run)
@@ -35,6 +44,7 @@ def run_payroll():
         
         if not active_employees:
             flash('No active employees found. Payroll run cancelled.', 'warning')
+            db.session.rollback()
             return redirect(url_for('payroll.run_payroll'))
             
         total_gross = Decimal('0.00')
@@ -43,6 +53,11 @@ def run_payroll():
 
         try:
             for emp in active_employees:
+                # Validate employee has salary rate
+                if not emp.salary_rate or emp.salary_rate <= 0:
+                    flash(f'Warning: Employee {emp.first_name} {emp.last_name} ({emp.employee_id_number}) has invalid salary rate. Skipping.', 'warning')
+                    continue
+                
                 # Calculate Time (Includes Holidays & Leave now)
                 time_data = calculate_time_for_period(emp, pay_period_start, pay_period_end)
                 

@@ -88,11 +88,16 @@ def calculate_daily_attendance(logs, schedule, target_date):
     
     for log in sorted_logs:
         if log.event_type == 'IN':
-            if not first_in: first_in = log.timestamp
+            # If already clocked in, ignore duplicate IN (use latest)
+            if not first_in: 
+                first_in = log.timestamp
             in_time = log.timestamp
-        elif log.event_type == 'OUT' and in_time:
-            total_time += (log.timestamp - in_time)
-            in_time = None 
+        elif log.event_type == 'OUT':
+            if in_time:
+                # Valid OUT with matching IN
+                total_time += (log.timestamp - in_time)
+                in_time = None
+            # If OUT without IN, ignore it (orphaned OUT) 
 
     if total_time == timedelta(0):
         return {
@@ -148,7 +153,11 @@ def calculate_payroll_time_for_period(employee, pay_period_start, pay_period_end
     total_ot_hours = Decimal('0.00')
     total_late_minutes = 0
     
-    standard_hours = employee.schedules.work_hours_per_day if employee.schedules else Decimal('8.00')
+    # Handle missing schedule gracefully
+    if employee.schedules and employee.schedules.work_hours_per_day:
+        standard_hours = employee.schedules.work_hours_per_day
+    else:
+        standard_hours = Decimal('8.00')  # Default to 8 hours if no schedule
     
     current_date = pay_period_start
     while current_date <= pay_period_end:
@@ -185,16 +194,29 @@ def calculate_payroll_time_for_period(employee, pay_period_start, pay_period_end
 
 # --- MAIN PAYROLL CALCULATOR ---
 def calculate_payroll_for_employee(employee, time_data):
-    basic_monthly_salary = employee.salary_rate
+    # Validate salary_rate exists and is positive
+    basic_monthly_salary = employee.salary_rate if employee.salary_rate else Decimal('0.00')
+    if basic_monthly_salary < 0:
+        basic_monthly_salary = Decimal('0.00')
+    
     HOURS_PER_MONTH = Decimal('160.00')
-    hourly_rate = basic_monthly_salary / HOURS_PER_MONTH if basic_monthly_salary else Decimal('0.00')
+    hourly_rate = basic_monthly_salary / HOURS_PER_MONTH if basic_monthly_salary > 0 else Decimal('0.00')
     
     total_reg_hours = time_data.get('total_reg_hours', Decimal('0.00'))
     total_ot_hours = time_data.get('total_ot_hours', Decimal('0.00'))
     total_late_minutes = time_data.get('total_late_minutes', 0)
     
-    late_deduction = (Decimal(total_late_minutes) * (hourly_rate / 60)).quantize(Decimal('0.01'))
-    overtime_pay = (total_ot_hours * hourly_rate * Decimal('1.25')).quantize(Decimal('0.01'))
+    # Calculate late deduction safely
+    if hourly_rate > 0 and total_late_minutes > 0:
+        late_deduction = (Decimal(total_late_minutes) * (hourly_rate / Decimal('60'))).quantize(Decimal('0.01'))
+    else:
+        late_deduction = Decimal('0.00')
+    
+    # Calculate overtime pay safely
+    if hourly_rate > 0 and total_ot_hours > 0:
+        overtime_pay = (total_ot_hours * hourly_rate * Decimal('1.25')).quantize(Decimal('0.01'))
+    else:
+        overtime_pay = Decimal('0.00')
     
     if total_reg_hours >= HOURS_PER_MONTH:
         prorated_base = basic_monthly_salary
