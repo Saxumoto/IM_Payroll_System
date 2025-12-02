@@ -50,6 +50,44 @@ def create_app(config_name='default'):
     from .attendance import bp as attendance_bp
     app.register_blueprint(attendance_bp)
     
+    # --- Register Template Filters for Time Formatting ---
+    from datetime import datetime
+    import pytz
+    
+    @app.template_filter('localtime')
+    def localtime_filter(dt, format='%b %d, %Y at %I:%M:%S %p'):
+        """Convert UTC datetime to local time and format it."""
+        if dt is None:
+            return 'N/A'
+        try:
+            # Get timezone from config (default to Asia/Manila)
+            tz_name = app.config.get('TIMEZONE', 'Asia/Manila')
+            if tz_name == 'UTC':
+                local_tz = pytz.UTC
+            else:
+                local_tz = pytz.timezone(tz_name)
+            
+            # If datetime is naive, assume it's UTC
+            if dt.tzinfo is None:
+                dt = pytz.UTC.localize(dt)
+            
+            # Convert to local timezone
+            local_dt = dt.astimezone(local_tz)
+            return local_dt.strftime(format)
+        except Exception as e:
+            # Fallback to original format if timezone conversion fails
+            return dt.strftime(format) if isinstance(dt, datetime) else str(dt)
+    
+    @app.template_filter('datetime_format')
+    def datetime_format_filter(dt, format='%b %d, %Y %I:%M %p'):
+        """Format datetime with a default nice format."""
+        if dt is None:
+            return 'N/A'
+        try:
+            return dt.strftime(format)
+        except:
+            return str(dt)
+    
     # --- Register Error Handlers ---
     from flask import render_template
     @app.errorhandler(404)

@@ -30,7 +30,7 @@
                     {% for log in logs %}
                     <tr>
                         <td>#{{ log.id }}</td>
-                        <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ log.timestamp | localtime('%b %d, %Y at %I:%M:%S %p') }}</td>
                         <td>{{ log.employee.first_name }} {{ log.employee.last_name }} ({{ log.employee.employee_id_number }})</td>
                         <td>
                             {% if log.event_type == 'IN' %}

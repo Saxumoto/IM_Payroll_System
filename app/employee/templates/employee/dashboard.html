@@ -46,7 +46,7 @@
                     <div class="text-center mb-3">
                         {% if clock_status.status == 'IN' %}
                             <p class="text-success mb-1">CURRENT STATUS: Clocked IN</p>
-                            <p class="text-muted small">Since: {{ clock_status.time.strftime('%Y-%m-%d %I:%M:%S %p') }} UTC</p>
+                            <p class="text-muted small">Since: {{ clock_status.time | localtime('%b %d, %Y at %I:%M:%S %p') }}</p>
                             <form method="POST" action="{{ url_for('employee.clock') }}" class="mt-2">
                                 <button type="submit" class="btn btn-danger btn-lg w-75 py-3">
                                     <i class="fas fa-sign-out-alt"></i> CLOCK OUT

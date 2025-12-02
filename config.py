@@ -26,6 +26,10 @@ class Config:
     # Logging
     LOG_TO_STDOUT = os.environ.get('LOG_TO_STDOUT')
     
+    # Timezone settings (default to Asia/Manila, can be overridden via environment variable)
+    # Common timezones: 'Asia/Manila', 'America/New_York', 'Europe/London', 'UTC'
+    TIMEZONE = os.environ.get('TIMEZONE', 'Asia/Manila')
+    
     @staticmethod
     def init_app(app):
         """Initialize application-specific configuration."""

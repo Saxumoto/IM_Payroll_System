@@ -9,6 +9,7 @@ from .forms import LeaveRequestForm
 from datetime import datetime
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
+import pytz
 
 def get_current_clock_status(employee_id):
     last_log = AttendanceLog.query.filter_by(employee_id=employee_id)\
@@ -50,7 +51,17 @@ def clock():
         )
         db.session.add(new_log)
         db.session.commit()
-        flash(f"Successfully clocked {new_event_type.lower()} at {new_log.timestamp.strftime('%Y-%m-%d %I:%M:%S %p')} UTC.", 'success')
+        # Convert UTC to local time for display (default to Asia/Manila, can be configured)
+        from flask import current_app
+        tz_name = current_app.config.get('TIMEZONE', 'Asia/Manila')
+        local_tz = pytz.timezone(tz_name) if tz_name != 'UTC' else pytz.UTC
+        # Ensure timestamp is timezone-aware (assume UTC if naive)
+        if new_log.timestamp.tzinfo is None:
+            utc_time = pytz.UTC.localize(new_log.timestamp)
+        else:
+            utc_time = new_log.timestamp
+        local_time = utc_time.astimezone(local_tz)
+        flash(f"Successfully clocked {new_event_type.lower()} at {local_time.strftime('%b %d, %Y at %I:%M:%S %p')}.", 'success')
     except Exception as e:
         db.session.rollback()
         flash(f"Error processing clock action: {e}", 'danger')

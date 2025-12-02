@@ -33,7 +33,7 @@
                 <tbody>
                     {% for log in logs %}
                     <tr>
-                        <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ log.timestamp | localtime('%b %d, %Y at %I:%M:%S %p') }}</td>
                         <td>
                             {% if log.user %}
                                 <strong>{{ log.user.full_name }}</strong> ({{ log.user.username }})
