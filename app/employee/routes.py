@@ -12,8 +12,12 @@ from sqlalchemy.orm import joinedload
 import pytz
 
 def get_current_clock_status(employee_id):
-    last_log = AttendanceLog.query.filter_by(employee_id=employee_id)\
-        .order_by(desc(AttendanceLog.timestamp)).first()
+    """Get the current clock status for an employee based on their most recent log entry."""
+    # Use fresh query to avoid caching issues
+    last_log = db.session.query(AttendanceLog)\
+        .filter_by(employee_id=employee_id)\
+        .order_by(desc(AttendanceLog.timestamp))\
+        .first()
     if not last_log:
         return {'status': 'OUT', 'time': None}
     if last_log.event_type == 'IN':
@@ -51,6 +55,10 @@ def clock():
         )
         db.session.add(new_log)
         db.session.commit()
+        
+        # Refresh the session to ensure we get fresh data on next query
+        db.session.expire_all()
+        
         # Convert UTC to local time for display (default to Asia/Manila, can be configured)
         from flask import current_app
         tz_name = current_app.config.get('TIMEZONE', 'Asia/Manila')
