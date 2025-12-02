@@ -69,7 +69,19 @@ def get_uploaded_file(filename):
     if ext.lower().lstrip('.') not in allowed_extensions:
         abort(404)
     
-    return send_from_directory(current_app.config['UPLOAD_FOLDER'], safe_filename)
+    upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    file_path = os.path.join(upload_folder, safe_filename)
+    
+    # If file doesn't exist, try to serve default.png
+    if not os.path.exists(file_path):
+        if safe_filename != 'default.png':
+            # Try to serve default.png instead
+            default_path = os.path.join(upload_folder, 'default.png')
+            if os.path.exists(default_path):
+                return send_from_directory(upload_folder, 'default.png')
+        abort(404)
+    
+    return send_from_directory(upload_folder, safe_filename)
 
 
 # --- NEW ROUTE: View Audit Logs ---

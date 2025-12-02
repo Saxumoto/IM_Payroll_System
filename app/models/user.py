@@ -58,8 +58,13 @@ class Employee(db.Model):
     
     @property
     def photo_url(self):
-        filename_to_use = self.photo_filename if self.photo_filename else 'default.png'
-        return url_for('main.get_uploaded_file', filename=filename_to_use)
+        """Returns the URL for the employee's profile photo."""
+        try:
+            filename_to_use = self.photo_filename if self.photo_filename else 'default.png'
+            return url_for('main.get_uploaded_file', filename=filename_to_use)
+        except RuntimeError:
+            # If app context is not available, return a placeholder
+            return url_for('static', filename='img/logo.png')
 
 
 class LeaveBalance(db.Model):

@@ -30,6 +30,13 @@ def create_app(config_name='default'):
     migrate.init_app(app, db, directory=app.config.get('MIGRATION_DIR'))
     login.init_app(app)
     
+    # --- Ensure upload folder exists ---
+    upload_folder = app.config.get('UPLOAD_FOLDER')
+    if upload_folder:
+        os.makedirs(upload_folder, exist_ok=True)
+        # Note: default.png should be uploaded manually or via git
+        # If it doesn't exist, the route will handle it gracefully
+    
     # --- Register Blueprints ---
     from .auth import bp as auth_bp
     app.register_blueprint(auth_bp)
