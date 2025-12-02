@@ -105,10 +105,159 @@
             padding-right: 15px;
         }
         
-        /* Fix navbar on mobile */
-        @media (max-width: 768px) {
+        /* ========== MOBILE RESPONSIVE STYLES ========== */
+        
+        /* Mobile: Extra small devices (phones, 576px and down) */
+        @media (max-width: 575.98px) {
+            .form-container {
+                padding: 1.5rem;
+                margin-top: 2vh;
+                border-radius: 0.5rem;
+            }
+            
+            .card-custom {
+                padding: 1rem !important;
+            }
+            
             .navbar-brand span {
+                font-size: 0.75rem;
+                display: none; /* Hide text on very small screens */
+            }
+            
+            .navbar-brand-logo {
+                height: 30px;
+                margin-right: 5px;
+            }
+            
+            h1, .h1 {
+                font-size: 1.5rem;
+            }
+            
+            h2, .h2 {
+                font-size: 1.25rem;
+            }
+            
+            .btn {
+                padding: 0.5rem 1rem;
                 font-size: 0.9rem;
+            }
+            
+            .btn-lg {
+                padding: 0.75rem 1.5rem;
+                font-size: 1rem;
+            }
+            
+            /* Make tables scrollable on mobile */
+            .table-responsive {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Stack columns on mobile */
+            .row > [class*="col-"] {
+                margin-bottom: 1rem;
+            }
+            
+            /* Better spacing for mobile */
+            .container-fluid {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            
+            /* Flash messages on mobile */
+            .position-fixed {
+                max-width: 95% !important;
+                margin-top: 60px !important;
+            }
+        }
+        
+        /* Mobile: Small devices (landscape phones, 576px and up) */
+        @media (min-width: 576px) and (max-width: 767.98px) {
+            .form-container {
+                padding: 2rem;
+            }
+            
+            .navbar-brand span {
+                font-size: 0.85rem;
+            }
+        }
+        
+        /* Tablet: Medium devices (tablets, 768px and up) */
+        @media (min-width: 768px) and (max-width: 991.98px) {
+            .form-container {
+                padding: 2rem;
+            }
+        }
+        
+        /* Desktop: Large devices (desktops, 992px and up) - default styles apply */
+        
+        /* Common mobile improvements */
+        @media (max-width: 991.98px) {
+            /* Make all tables responsive */
+            table {
+                font-size: 0.9rem;
+            }
+            
+            /* Better button spacing on mobile */
+            .btn-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.25rem;
+            }
+            
+            /* Improve form inputs on mobile */
+            .form-control, .form-select {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            /* Better card spacing */
+            .card {
+                margin-bottom: 1rem;
+            }
+            
+            /* Stack flex items on mobile - but only if not explicitly overridden */
+            .d-flex.justify-content-between:not(.flex-md-row) {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            /* Make action buttons stack on mobile */
+            .d-flex.gap-2 {
+                flex-wrap: wrap;
+            }
+            
+            /* Smaller images on mobile tables */
+            .table img {
+                width: 40px !important;
+                height: 40px !important;
+            }
+        }
+        
+        /* Touch-friendly improvements for mobile */
+        @media (hover: none) and (pointer: coarse) {
+            /* Larger touch targets */
+            .btn, a, button {
+                min-height: 44px; /* Apple's recommended touch target size */
+                min-width: 44px;
+            }
+            
+            /* Better spacing for touch */
+            .nav-link {
+                padding: 0.75rem 1rem;
+            }
+        }
+        
+        /* Print styles */
+        @media print {
+            .navbar, .btn, .alert {
+                display: none !important;
+            }
+            
+            .card-custom {
+                box-shadow: none;
+                border: 1px solid #ddd;
             }
         }
     </style>
