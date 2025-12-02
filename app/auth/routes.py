@@ -17,6 +17,12 @@ def register():
     
     form = RegistrationForm()
     if form.validate_on_submit():
+        # Check if user already exists
+        existing_user = User.query.filter_by(username=form.email.data).first()
+        if existing_user:
+            flash('An account with this email already exists. Please sign in instead.', 'warning')
+            return redirect(url_for('auth.signin'))
+        
         user = User(
             username=form.email.data, 
             full_name=form.full_name.data,
@@ -27,11 +33,18 @@ def register():
         # NOTE: Auto-admin logic removed for security.
         # To create an Admin, manually update the database row.
         
-        db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.add(user)
+            db.session.commit()
+            flash('Registration successful! Please sign in.', 'success')
+            return redirect(url_for('auth.signin'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Registration failed. Please try again or contact support.', 'danger')
+            # Log the error for debugging (in production, use proper logging)
+            print(f"Registration error: {e}")
         
-        flash('Registration successful! Please sign in.', 'success')
-        return redirect(url_for('auth.signin'))
+    return render_template('auth/signup.html', form=form)
         
     return render_template('auth/signup.html', form=form)
 
