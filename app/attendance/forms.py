@@ -24,6 +24,7 @@ class EmployeeScheduleForm(FlaskForm):
 class ManualAttendanceLogForm(FlaskForm):
     """Form for manually adding a clock event for an employee."""
     employee_id = SelectField('Employee', coerce=int, validators=[DataRequired()])
+    # Keep timestamp field for backend, but we'll use separate date/time inputs in frontend
     timestamp = DateTimeField('Date and Time', format='%Y-%m-%d %H:%M:%S', default=datetime.now, validators=[DataRequired()])
     event_type = SelectField('Event Type', choices=[
         ('IN', 'Clock In'),

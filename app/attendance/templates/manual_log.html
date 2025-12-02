@@ -35,11 +35,36 @@
                         <label for="employee_id" class="form-label">Employee</label>
                         {{ form.employee_id(class="form-select") }}
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="timestamp" class="form-label">Date & Time</label>
-                        {{ form.timestamp(class="form-control", id="eventTimestamp") }}
-                        <small class="text-muted">Format: YYYY-MM-DD HH:MM:SS</small>
+                        <label class="form-label">Date & Time</label>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <input type="date" class="form-control" id="datePicker" required>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="time" class="form-control" id="timePicker" required>
+                            </div>
+                        </div>
+                        <!-- Hidden field that will be populated with combined date/time -->
+                        {{ form.timestamp(class="form-control d-none", id="eventTimestamp") }}
+                        
+                        <!-- Quick Time Buttons -->
+                        <div class="mt-2">
+                            <small class="text-muted d-block mb-2">Quick Time Selection:</small>
+                            <div class="btn-group btn-group-sm flex-wrap" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="setQuickTime('now')">
+                                    <i class="fas fa-clock"></i> Now
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="setQuickTime('08:00')">8:00 AM</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="setQuickTime('09:00')">9:00 AM</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="setQuickTime('12:00')">12:00 PM</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="setQuickTime('17:00')">5:00 PM</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="setQuickTime('18:00')">6:00 PM</button>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="mb-3">
                         <label for="event_type" class="form-label">Event Type</label>
                         {{ form.event_type(class="form-select") }}
@@ -73,8 +98,13 @@
             dateClick: function(info) {
                 var clickedDate = info.dateStr; 
                 var now = new Date();
-                var timeString = now.toTimeString().split(' ')[0];
-                document.getElementById('eventTimestamp').value = clickedDate + ' ' + timeString;
+                var timeString = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
+                
+                // Set date and time pickers
+                document.getElementById('datePicker').value = clickedDate;
+                document.getElementById('timePicker').value = timeString;
+                updateTimestampField();
+                
                 var myModal = new bootstrap.Modal(document.getElementById('entryModal'));
                 myModal.show();
             },
@@ -88,11 +118,64 @@
             }
         });
         calendar.render();
+        
+        // Initialize date/time pickers with current date/time
+        var now = new Date();
+        var dateStr = now.toISOString().split('T')[0];
+        var timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+        document.getElementById('datePicker').value = dateStr;
+        document.getElementById('timePicker').value = timeStr;
+        updateTimestampField();
+        
+        // Update hidden timestamp field when date or time changes
+        document.getElementById('datePicker').addEventListener('change', updateTimestampField);
+        document.getElementById('timePicker').addEventListener('change', updateTimestampField);
     });
+    
+    // Function to combine date and time into the hidden timestamp field
+    function updateTimestampField() {
+        var date = document.getElementById('datePicker').value;
+        var time = document.getElementById('timePicker').value;
+        if (date && time) {
+            // Combine date and time into YYYY-MM-DD HH:MM:SS format
+            document.getElementById('eventTimestamp').value = date + ' ' + time + ':00';
+        }
+    }
+    
+    // Function to set quick time
+    function setQuickTime(timeValue) {
+        if (timeValue === 'now') {
+            var now = new Date();
+            var dateStr = now.toISOString().split('T')[0];
+            var timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+            document.getElementById('datePicker').value = dateStr;
+            document.getElementById('timePicker').value = timeStr;
+        } else {
+            // Set just the time (date stays the same)
+            document.getElementById('timePicker').value = timeValue;
+        }
+        updateTimestampField();
+    }
 </script>
 
 <style>
     #calendar { max-width: 100%; margin: 0 auto; }
     .fc-event { cursor: pointer; }
+    
+    /* Quick time buttons styling */
+    .btn-group-sm .btn {
+        margin: 2px;
+        border-radius: 4px;
+    }
+    
+    .btn-group-sm.flex-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .btn-group-sm.flex-wrap .btn {
+        flex: 0 0 auto;
+    }
 </style>
 {% endblock %}
