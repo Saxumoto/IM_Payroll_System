@@ -45,8 +45,6 @@ def register():
             print(f"Registration error: {e}")
         
     return render_template('auth/signup.html', form=form)
-        
-    return render_template('auth/signup.html', form=form)
 
 
 @bp.route('/signin', methods=['GET', 'POST'])
