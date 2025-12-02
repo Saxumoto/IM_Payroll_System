@@ -106,14 +106,31 @@ def delete_all_audit_logs():
 
 @bp.route('/make-me-admin/<email>')
 def make_me_admin(email):
-    # Find the user by the email you registered with
-    user = User.query.filter_by(username=email).first()
-    
-    if not user:
-        return f"User {email} not found!", 404
+    """
+    Quick admin promotion route for initial setup.
+    WARNING: Remove or secure this route in production!
+    """
+    try:
+        # Find the user by the email you registered with
+        user = User.query.filter_by(username=email).first()
         
-    # Force their role to Admin
-    user.role = 'Admin'
-    db.session.commit()
-    
-    return f"SUCCESS! User {email} is now an Admin. You can <a href='/auth/signin'>Login Now</a>."
+        if not user:
+            flash(f'User {email} not found! Make sure you registered first.', 'danger')
+            return redirect(url_for('auth.register'))
+        
+        # Check if already admin
+        if user.role == 'Admin':
+            flash(f'User {email} is already an Admin!', 'info')
+            return redirect(url_for('auth.signin'))
+        
+        # Force their role to Admin
+        user.role = 'Admin'
+        db.session.commit()
+        
+        flash(f'SUCCESS! {email} is now an Admin. Please sign in.', 'success')
+        return redirect(url_for('auth.signin'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error promoting user to Admin: {str(e)}', 'danger')
+        return redirect(url_for('main.welcome'))
