@@ -52,24 +52,28 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
-    # In production, these must be set via environment variables
-    # Validation happens in init_app() method
     
     @staticmethod
     def init_app(app):
         """Initialize production configuration with validation."""
-        Config.init_app(app)  # Call parent init_app for logging
+        Config.init_app(app)
         
         # Validate required environment variables
         if not os.environ.get('SECRET_KEY'):
             raise ValueError("SECRET_KEY environment variable must be set in production!")
         
-        if not os.environ.get('DATABASE_URL'):
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
             raise ValueError("DATABASE_URL environment variable must be set in production!")
+            
+        # --- FIX: Handle 'postgres://' vs 'postgresql://' for SQLAlchemy ---
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        # -------------------------------------------------------------------
         
         # Set production values
         app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
 config = {
     'development': DevelopmentConfig,
